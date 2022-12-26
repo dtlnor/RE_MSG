@@ -1,0 +1,261 @@
+//------------------------------------------------
+//--- 010 Editor v12.0.1 Binary Template
+//
+//      File: .msg.12, 14, 15, 17, 20, 0x20220626(539100710)
+//   Authors: dtlnor (Thanks to wwylele's mhrice and ponaromixxx's msg tool)
+//   Version: 1.1.0
+//   Purpose: To edit ReEngine's msg file
+//  Category: 
+// File Mask: *.msg.\d+
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+// Set to false to disable string search BEFORE decrypt (when your msg file is large),
+// otherwise it waste many time to read garbage from entire encrypted part again and again(cuz no null terminator).
+local int isDecrypted = false;
+if( MessageBox( idYes | idNo, "isDecrypted?", "Does your file been decrypted by RE_MSG_proc.1sc?") == idYes )
+    isDecrypted = true;
+
+local int i, j = 0;
+
+struct {
+    uint32 version<format=hex>;
+    char magic[4];              //GMSG
+    uint64 headerOffset;        //0x10
+    uint32 entryCount;
+    uint32 attributeCount;
+    uint32 langCount;
+    uint32 padding<bgcolor=0x000000,hidden=true>;   //align to 8
+    if (version > 12){
+        uint64 dataOffset;      // encrypted string pool
+    }
+    uint64 unknZeroOffset;
+    uint64 langOffset;
+    uint64 attributeOffset;
+    uint64 attributeNameOffset;
+}Header<bgcolor=0xFFFFFF>;
+
+// Utility method and struct
+struct SeekString(uint64 offset) {
+    if (isDecrypted) {
+        local int p = FTell();
+        FSeek(offset);
+        wstring WString<bgcolor=0x080080>;
+        FSeek(p);
+    } else {
+        local wstring WString = "";
+    }
+};
+struct ReadAttrString() {
+    uint64 offset<bgcolor=0xAABBCC>;
+    if (isDecrypted) {
+        local int p = FTell();
+        FSeek(offset);
+        wstring WString<bgcolor=0x080080>;
+        FSeek(p);
+    } else {
+        local wstring WString = "";
+    }
+};
+void CheckPosition(uint64 target, string hint){
+    if (target != FTell())
+        Printf(hint+" not match\n");
+    FSeek(target);
+}
+
+// stolen GUID from RE_RSZ
+typedef struct {
+    uchar uuid[16] <open=suppress>;
+} rGUID <read=ReadrGUID, write=WriterGuid>;
+
+    string TranslateGUID (uchar uuid[]) {
+        local char s[37];
+        SPrintf(s, 
+            "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x", 
+            uuid[3], uuid[2], uuid[1], uuid[0], uuid[5], uuid[4], uuid[7], uuid[6],
+            uuid[8], uuid[9], uuid[10], uuid[11], uuid[12], uuid[13], uuid[14], uuid[15]
+        );
+        return s;
+    }
+
+    string ReadrGUID (rGUID &g) {
+        local string Guid = TranslateGUID(g.uuid);
+        return Guid;
+    }
+
+    void WriterGuid (rGUID &g, string s) {
+        local string out;
+        local byte ii, offset;
+        local uchar uuid[16];
+        for (ii=0; ii<16; ii++) {
+            if (ii==4 || ii== 6 || ii==8 || ii==10)
+                offset++;
+            SScanf(SubStr(s, ii*2 + offset, 2), "%x", uuid[ii]);
+        }
+        local uchar uuid_le[16] = {
+            uuid[3], uuid[2], uuid[1], uuid[0], uuid[5], uuid[4], uuid[7], uuid[6],
+            uuid[8], uuid[9], uuid[10], uuid[11], uuid[12], uuid[13], uuid[14], uuid[15]
+        };
+        WriteBytes(uuid_le, startof(g), 16);
+    }
+
+
+uint64 entryOffsets[Header.entryCount]<bgcolor=0x00FFFF>;
+
+CheckPosition(Header.unknZeroOffset, "Header.unknZeroOffset");
+uint64 unknZero<bgcolor=0x404040>;
+if (unknZero != 0) Printf("unknZero Expected 0\n");
+
+CheckPosition(Header.langOffset, "Header.langOffset");
+uint32 languages[Header.langCount]<bgcolor=0xFF00FF>;
+
+ubyte padding1[FTell() % 8]<bgcolor=0x000000,hidden=true>;
+
+CheckPosition(Header.attributeOffset, "Header.attributeOffset");
+int32 attributeValueTypes[Header.attributeCount]<bgcolor=0xFFFF00>;
+
+ubyte padding2[FTell() % 8]<bgcolor=0x000000,hidden=true>;
+
+CheckPosition(Header.attributeNameOffset, "Header.attributeNameOffset");
+uint64 attributeNamesOffset[Header.attributeCount]<bgcolor=0xAA44FF>;
+
+struct {
+    local uint attrIdx = 0;
+    for (attrIdx = 0; attrIdx < Header.attributeCount; attrIdx++){
+        SeekString attributeName(attributeNamesOffset[attrIdx])<read=this.WString>;
+    }
+}attributeNames;
+
+typedef struct{
+    rGUID uuid<bgcolor=0xFF0000>;
+    uint unkn<bgcolor=0xFF0000, format=hex, comment="CRC ???">;
+    if (Header.version > 15){
+        uint index<bgcolor=0xFF0000, comment="entry index">;
+    }else{
+        uint hash<bgcolor=0xFF0000, format=hex, comment="should be the murmurhash3 of the entry Name">;
+    }
+    uint64 entryNameOffset<bgcolor=0xFF4400>; //name 
+    uint64 attributeOffset<bgcolor=0xFF0044>; //attributes
+    uint64 contentOffsetsByLangs[Header.langCount]<bgcolor=0xFF4444>; //content
+}SubEntryHeader;
+
+// entryOffsets
+struct {
+    local uint entry = 0;
+    for (entry = 0; entry < Header.entryCount; entry++){
+        CheckPosition(entryOffsets[entry], "entryOffsets[entry]");
+        SubEntryHeader subEntryHead;
+    }
+}EntryTbl;
+
+struct Attribute(uint entry){
+    local uint attrIdx = 0;
+    CheckPosition(EntryTbl.subEntryHead[entry].attributeOffset, "EntryTbl.subEntryHead[entry].attributeOffset");
+    for (attrIdx = 0; attrIdx < Header.attributeCount; attrIdx++) {
+        switch (attributeValueTypes[attrIdx]){
+            case -1: ReadAttrString attributeValue()<read=this.WString>; break;
+            case 0: int64 attributeValue<bgcolor=0xAABBCC>; break;
+            case 1: double attributeValue<bgcolor=0xAABBCC>; break;
+            case 2: ReadAttrString attributeValue()<read=this.WString>; break;
+            default: Printf("attribute Value DataType %d not implemented\n", attributeValueTypes[attrIdx]); break; //attributeOffsets
+        }
+    }
+};
+
+// better readability
+struct {
+    local uint entry = 0;
+
+    // struct {
+    //     for (entry = 0; entry < Header.entryCount; entry++){
+    //         Attribute attribute(entry);
+    //     }
+    // } Attributes;
+
+    if (Header.version > 12){
+        FSeek(Header.dataOffset);
+        // CheckPosition(Header.dataOffset, "dataOffset");
+        local uint64 dataSize = FileSize() - Header.dataOffset;
+        ubyte dataStream[dataSize]<hidden=true>; //data
+    }
+
+    // struct {
+    //     for (entry = 0; entry < Header.entryCount; entry++){
+    //         SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=this.WString, comment="should match the hash(utf16)">; //name
+    //     }
+    // } EntryNames;
+
+    //struct {
+        for (entry = 0; entry < Header.entryCount; entry++){
+            SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=this.WString, comment="should match the hash(utf16)">; //name
+            struct{
+                local uint langIndex = 0;
+                for (langIndex = 0; langIndex < Header.langCount; langIndex++) {
+                    SeekString textContent(EntryTbl.subEntryHead[entry].contentOffsetsByLangs[langIndex])<read=this.WString>; //content
+                }
+            } ContentByLangs<read=this.textContent[0].WString>;
+            FSeek(EntryTbl.subEntryHead[entry].attributeOffset);
+            Attribute attribute(entry);
+
+        }
+    //} Contents;
+
+}EntryContents;
+
+
+// sequential read for debug use
+/*
+struct {
+    local uint entry = 0;
+
+    struct {
+        for (entry = 0; entry < Header.entryCount; entry++){
+            Attribute attribute(entry);
+        }
+    } Attributes;
+
+
+    if (Header.version > 12){
+        // FSeek(Header.dataOffset);
+        CheckPosition(Header.dataOffset, "dataOffset");
+        local uint64 dataSize = FileSize() - Header.dataOffset;
+        ubyte dataStream[dataSize]<hidden=true>; //data
+    }
+
+    struct {
+        for (entry = 0; entry < Header.entryCount; entry++){
+            SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=this.WString, comment="should match the hash(utf16)">; //name
+        }
+    } EntryNames;
+
+    struct {
+        for (entry = 0; entry < Header.entryCount; entry++){
+            // SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=this.WString, comment="should match the hash(utf16)">; //name
+            struct{
+                local uint langIndex = 0;
+                for (langIndex = 0; langIndex < Header.langCount; langIndex++) {
+                    SeekString textContent(EntryTbl.subEntryHead[entry].contentOffsetsByLangs[langIndex])<read=this.WString>; //content
+                }
+            } ContentByLangs<read=this.textContent[0].WString>;
+            // FSeek(EntryTbl.subEntryHead[entry].attributeOffset);
+            // Attribute attribute(entry);
+
+        }
+    } Contents;
+
+}EntryContents;
+*/
+
+// Show all string, debug use
+/*
+if (isDecrypted){
+    FSeek(Header.dataOffset);
+    struct{
+        while (!FEof()){
+            struct{
+                wstring WString;
+            }item<read=this.WString>;
+        };
+    }WStringPool;
+}*/
