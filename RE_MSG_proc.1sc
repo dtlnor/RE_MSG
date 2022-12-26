@@ -1,0 +1,45 @@
+//------------------------------------------------
+//--- 010 Editor v13.0 Script File
+//
+//      File: .msg.*
+//   Authors: dtlnor (Thanks to wwylele's mhrice and ponaromixxx's msg tool)
+//   Version: 1.1.0
+//   Purpose: decrypt or encrypt the msg file. (for version <= 12, it seems its not encrypted)
+//  Category: 
+//   History: 
+//------------------------------------------------
+
+local int i, j = 0;
+
+local ubyte key[16] = {
+0xCF, 0xCE, 0xFB, 0xF8, 0xEC, 0x0A, 0x33, 0x66,
+0x93, 0xA9, 0x1D, 0x93, 0x50, 0x39, 0x5F, 0x09};
+
+
+void decrypt(){
+    local ubyte prev, cur = 0;
+    local ubyte buffer[EntryContents.dataSize];
+    for (i = 0; i < EntryContents.dataSize; i++) {
+        cur = EntryContents.dataStream[i];
+        buffer[i] = cur ^ prev ^ key[i & 0xF];
+        prev = cur;
+    }
+    WriteBytes(buffer, Header.dataOffset, EntryContents.dataSize);
+}
+
+void encrypt(){
+    local ubyte prev, cur = 0;
+    local ubyte buffer[EntryContents.dataSize];
+    for (i = 0; i < EntryContents.dataSize; i++) {
+        prev = EntryContents.dataStream[i];
+        buffer[i] = cur ^ prev ^ key[i & 0xF];
+        cur = buffer[i];
+    }
+    WriteBytes(buffer, Header.dataOffset, EntryContents.dataSize);
+}
+
+// This will take several seconds when your file size larger than 1MB.
+// You should wait til "Script executed successfully." shown on the output panel before you do anything else.
+// remember to encrypt back after you finish editing or else.
+decrypt();
+//encrypt();
