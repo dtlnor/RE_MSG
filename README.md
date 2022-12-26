@@ -13,6 +13,9 @@
 3. Run the `RE_MSG_proc.1sc` script, make sure the bottom `decrypt();` line wasn't commented out. The file should be decrypted after "Script executed successfully." shown on the output panel.
 4. Run the `RE_MSG.bt` template again. Click `Yes` when it ask you if the file been decrypted. Finish.
 
+## Language Name 
+Language Name by index value [LanguageEnum](LanguagesEnum.md)
+
 # Credits
 * wwylele's [mhrice](https://github.com/wwylele/mhrice), for file structure.
 * ponaromixxx's [msg tool](https://zenhax.com/viewtopic.php?f=12&t=13337), for file structure.
