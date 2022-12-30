@@ -130,7 +130,7 @@ struct {
 typedef struct{
     rGUID uuid<bgcolor=0xFF0000>;
     uint unkn<bgcolor=0xFF0000, format=hex, comment="CRC ???">;
-    if (Header.version > 15){
+    if (Header.version <= 15){
         uint index<bgcolor=0xFF0000, comment="entry index">;
     }else{
         uint hash<bgcolor=0xFF0000, format=hex, comment="should be the murmurhash3 of the entry Name">;
