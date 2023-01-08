@@ -1,6 +1,6 @@
 
 Language Enum extract from `via.Language`  
-~~omg, they spell wrong some of the names… I've corrected it here.~~
+~~omg, they spell some of the names wrong… I've corrected it here.~~
 | index | Language |
 | --- | --- |
 | 0 | Japanese |
