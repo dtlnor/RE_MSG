@@ -13,6 +13,11 @@
 3. Run the `RE_MSG_proc.1sc` script, make sure the bottom `decrypt();` line wasn't commented out. The file should be decrypted after "Script executed successfully." shown on the output panel.
 4. Run the `RE_MSG.bt` template again. Click `Yes` when it ask you if the file been decrypted. Finish.
 
+Tips: Choose `View`->`Character Set`->`UTF-8` to browse non-ascii character (although the encoding is utf-16)
+
+## Encrypt back before save
+Run the `RE_MSG_proc.1sc` script, make sure the bottom `encrypt();` line wasn't commented out (and make sure `decrypt();` line was commented out like `\\decrypt();`). The file should be encrypted after "Script executed successfully." shown on the output panel.
+
 ## Language Name 
 Language Name by index value [LanguageEnum](LanguagesEnum.md)
 
