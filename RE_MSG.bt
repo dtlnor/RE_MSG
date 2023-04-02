@@ -1,7 +1,7 @@
 //------------------------------------------------
 //--- 010 Editor v12.0.1 Binary Template
 //
-//      File: .msg.12, 14, 15, 17, 20, 0x20220626(539100710)
+//      File: .msg.12, 0x2022033D(539099965), 14, 15, 17, 20, 0x20220626(539100710), 22
 //   Authors: dtlnor (Thanks to wwylele's mhrice and ponaromixxx's msg tool)
 //   Version: 1.1.0
 //   Purpose: To edit ReEngine's msg file
@@ -14,8 +14,6 @@
 // Set to false to disable string search BEFORE decrypt (when your msg file is large),
 // otherwise it waste many time to read garbage from entire encrypted part again and again(cuz no null terminator).
 local int isDecrypted = false;
-if( MessageBox( idYes | idNo, "isDecrypted?", "Does your file been decrypted by RE_MSG_proc.1sc?") == idYes )
-    isDecrypted = true;
 
 local int i, j = 0;
 
@@ -27,7 +25,7 @@ struct {
     uint32 attributeCount;
     uint32 langCount;
     uint32 padding<bgcolor=0x000000,hidden=true>;   //align to 8
-    if (version > 12){
+    if (version > 12 && version!=0x2022033D){
         uint64 dataOffset;      // encrypted string pool
     }
     uint64 unknZeroOffset;
@@ -35,6 +33,13 @@ struct {
     uint64 attributeOffset;
     uint64 attributeNameOffset;
 }Header<bgcolor=0xFFFFFF>;
+
+if (Header.version > 12 && Header.version!=0x2022033D){
+    if( MessageBox( idYes | idNo, "isDecrypted?", "Does your file been decrypted by RE_MSG_proc.1sc?") == idYes )
+        isDecrypted = true;
+}else{
+    isDecrypted = true;
+}
 
 // Utility method and struct
 struct SeekString(uint64 offset) {
@@ -173,7 +178,7 @@ struct {
     //     }
     // } Attributes;
 
-    if (Header.version > 12){
+    if (Header.version > 12 && Header.version!=0x2022033D){
         FSeek(Header.dataOffset);
         // CheckPosition(Header.dataOffset, "dataOffset");
         local uint64 dataSize = FileSize() - Header.dataOffset;
@@ -216,7 +221,7 @@ struct {
     } Attributes;
 
 
-    if (Header.version > 12){
+    if (Header.version > 12 && Header.version!=0x2022033D){
         // FSeek(Header.dataOffset);
         CheckPosition(Header.dataOffset, "dataOffset");
         local uint64 dataSize = FileSize() - Header.dataOffset;
