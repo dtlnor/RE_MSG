@@ -21,6 +21,9 @@ Run the `RE_MSG_proc.1sc` script, make sure the bottom `encrypt();` line wasn't 
 ## Language Name 
 Language Name by index value [LanguageEnum](LanguagesEnum.md)
 
+## File editing
+Try [REMSG_Converter](https://github.com/dtlnor/REMSG_Converter) - Python library for converting from RE engine msg text file to json/csv/txt and back.
+
 # Credits
 * wwylele's [mhrice](https://github.com/wwylele/mhrice), for file structure.
 * ponaromixxx's [msg tool](https://zenhax.com/viewtopic.php?f=12&t=13337), for file structure.
