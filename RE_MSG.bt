@@ -275,4 +275,6 @@ wstring ReadSeekString (SeekString &r) { return r.WString; }
 
 wstring ReadReadAttrString (ReadAttrString &r) { return r.WString; }
 
+// change value of i for textContent[i] to view in other lang, ref to LanguagesEnum.md
+// (while for debug msg file, sometimes it has japanese contents only)
 wstring ReadContentByLangs (ContentByLangs &r) { return r.textContent[0].WString; }
