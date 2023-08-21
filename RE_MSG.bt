@@ -128,7 +128,7 @@ uint64 attributeNamesOffset[Header.attributeCount]<bgcolor=0xAA44FF>;
 struct {
     local uint attrIdx = 0;
     for (attrIdx = 0; attrIdx < Header.attributeCount; attrIdx++){
-        SeekString attributeName(attributeNamesOffset[attrIdx])<read=this.WString>;
+        SeekString attributeName(attributeNamesOffset[attrIdx])<read=ReadSeekString>;
     }
 }attributeNames;
 
@@ -159,10 +159,10 @@ struct Attribute(uint entry){
     CheckPosition(EntryTbl.subEntryHead[entry].attributeOffset, "EntryTbl.subEntryHead[entry].attributeOffset");
     for (attrIdx = 0; attrIdx < Header.attributeCount; attrIdx++) {
         switch (attributeValueTypes[attrIdx]){
-            case -1: ReadAttrString attributeValue()<read=this.WString>; break;
+            case -1: ReadAttrString attributeValue()<read=ReadReadAttrString>; break;
             case 0: int64 attributeValue<bgcolor=0xAABBCC>; break;
             case 1: double attributeValue<bgcolor=0xAABBCC>; break;
-            case 2: ReadAttrString attributeValue()<read=this.WString>; break;
+            case 2: ReadAttrString attributeValue()<read=ReadReadAttrString>; break;
             default: Printf("attribute Value DataType %d not implemented\n", attributeValueTypes[attrIdx]); break; //attributeOffsets
         }
     }
@@ -187,19 +187,21 @@ struct {
 
     // struct {
     //     for (entry = 0; entry < Header.entryCount; entry++){
-    //         SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=this.WString, comment="should match the hash(utf16)">; //name
+    //         SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=ReadSeekString, comment="should match the hash(utf16)">; //name
     //     }
     // } EntryNames;
 
+    struct ContentByLangs{
+        local uint langIndex = 0;
+        for (langIndex = 0; langIndex < Header.langCount; langIndex++) {
+            SeekString textContent(EntryTbl.subEntryHead[entry].contentOffsetsByLangs[langIndex])<read=ReadSeekString>; //content
+        }
+    };
+
     //struct {
         for (entry = 0; entry < Header.entryCount; entry++){
-            SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=this.WString, comment="should match the hash(utf16)">; //name
-            struct{
-                local uint langIndex = 0;
-                for (langIndex = 0; langIndex < Header.langCount; langIndex++) {
-                    SeekString textContent(EntryTbl.subEntryHead[entry].contentOffsetsByLangs[langIndex])<read=this.WString>; //content
-                }
-            } ContentByLangs<read=this.textContent[0].WString>;
+            SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=ReadSeekString, comment="should match the hash(utf16)">; //name
+            ContentByLangs contentByLangs<read=ReadContentByLangs>;
             FSeek(EntryTbl.subEntryHead[entry].attributeOffset);
             Attribute attribute(entry);
 
@@ -207,7 +209,6 @@ struct {
     //} Contents;
 
 }EntryContents;
-
 
 // sequential read for debug use
 /*
@@ -230,19 +231,21 @@ struct {
 
     struct {
         for (entry = 0; entry < Header.entryCount; entry++){
-            SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=this.WString, comment="should match the hash(utf16)">; //name
+            SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=ReadSeekString, comment="should match the hash(utf16)">; //name
         }
     } EntryNames;
 
+    struct ContentByLangs{
+        local uint langIndex = 0;
+        for (langIndex = 0; langIndex < Header.langCount; langIndex++) {
+            SeekString textContent(EntryTbl.subEntryHead[entry].contentOffsetsByLangs[langIndex])<read=ReadSeekString>; //content
+        }
+    };
+
     struct {
         for (entry = 0; entry < Header.entryCount; entry++){
-            // SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=this.WString, comment="should match the hash(utf16)">; //name
-            struct{
-                local uint langIndex = 0;
-                for (langIndex = 0; langIndex < Header.langCount; langIndex++) {
-                    SeekString textContent(EntryTbl.subEntryHead[entry].contentOffsetsByLangs[langIndex])<read=this.WString>; //content
-                }
-            } ContentByLangs<read=this.textContent[0].WString>;
+            // SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=ReadSeekString, comment="should match the hash(utf16)">; //name
+            ContentByLangs contentByLangs<read=ReadContentByLangs>;
             // FSeek(EntryTbl.subEntryHead[entry].attributeOffset);
             // Attribute attribute(entry);
 
@@ -264,3 +267,12 @@ if (isDecrypted){
         };
     }WStringPool;
 }*/
+
+
+// Add some reader function to let 010 9.x able to run this template
+
+wstring ReadSeekString (SeekString &r) { return r.WString; }
+
+wstring ReadReadAttrString (ReadAttrString &r) { return r.WString; }
+
+wstring ReadContentByLangs (ContentByLangs &r) { return r.textContent[0].WString; }
