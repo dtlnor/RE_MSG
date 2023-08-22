@@ -11,38 +11,19 @@
 //   History: 
 //------------------------------------------------
 
-// Set to false to disable string search BEFORE decrypt (when your msg file is large),
-// otherwise it waste many time to read garbage from entire encrypted part again and again(cuz no null terminator).
+// change value of this to view in other lang, ref to LanguagesEnum.md
+// (while for debug msg file, sometimes it has japanese contents only, so default to 0)
+local int defaultContentPreviewLangCode = 0;
+
+// ~~Set to false to disable string search BEFORE decrypt (when your msg file is large),~~
+// ~~otherwise it waste many time to read garbage from entire encrypted part again and again(cuz no null terminator).~~
+// This will now be force to set by user input from MessageBox return.
 local int isDecrypted = false;
 
 local int i, j = 0;
 
-struct {
-    uint32 version<format=hex>;
-    char magic[4];              //GMSG
-    uint64 headerOffset;        //0x10
-    uint32 entryCount;
-    uint32 attributeCount;
-    uint32 langCount;
-    uint32 padding<bgcolor=0x000000,hidden=true>;   //align to 8
-    if (version > 12 && version!=0x2022033D){
-        uint64 dataOffset;      // encrypted string pool
-    }
-    uint64 unknZeroOffset;
-    uint64 langOffset;
-    uint64 attributeOffset;
-    uint64 attributeNameOffset;
-}Header<bgcolor=0xFFFFFF>;
-
-if (Header.version > 12 && Header.version!=0x2022033D){
-    if( MessageBox( idYes | idNo, "isDecrypted?", "Does your file been decrypted by RE_MSG_proc.1sc?") == idYes )
-        isDecrypted = true;
-}else{
-    isDecrypted = true;
-}
-
 // Utility method and struct
-struct SeekString(uint64 offset) {
+typedef struct (uint64 offset) {
     if (isDecrypted) {
         local int p = FTell();
         FSeek(offset);
@@ -51,8 +32,12 @@ struct SeekString(uint64 offset) {
     } else {
         local wstring WString = "";
     }
-};
-struct ReadAttrString() {
+} SeekString <read=ReadSeekString>;
+
+    wstring ReadSeekString (SeekString &r) { return r.WString; }
+
+
+typedef struct {
     uint64 offset<bgcolor=0xAABBCC>;
     if (isDecrypted) {
         local int p = FTell();
@@ -62,12 +47,27 @@ struct ReadAttrString() {
     } else {
         local wstring WString = "";
     }
-};
+} ReadAttrString<read=ReadReadAttrString> ;
+
+    wstring ReadReadAttrString (ReadAttrString &r) { return r.WString; }
+
+
 void CheckPosition(uint64 target, string hint){
     if (target != FTell())
         Printf(hint+" not match\n");
     FSeek(target);
 }
+
+
+int IsVersionEncrypt(uint32 version){
+    return (version > 12) && (version != 0x2022033D);
+}
+
+
+int IsVersionEntryByHash(uint32 version){
+    return (version > 15) && (version != 0x2022033D);
+}
+
 
 // stolen GUID from RE_RSZ
 typedef struct {
@@ -106,6 +106,31 @@ typedef struct {
     }
 
 
+// Header of GMSG
+struct {
+    uint32 version<format=hex>;
+    char magic[4];              //GMSG
+    uint64 headerOffset;        //0x10
+    uint32 entryCount;
+    uint32 attributeCount;
+    uint32 langCount;
+    uint32 padding<bgcolor=0x000000,hidden=true>;   //align to 8
+    if (IsVersionEncrypt(version)){
+        uint64 dataOffset;      // encrypted string pool
+    }
+    uint64 unknZeroOffset;
+    uint64 langOffset;
+    uint64 attributeOffset;
+    uint64 attributeNameOffset;
+} Header <bgcolor=0xFFFFFF>;
+
+if (IsVersionEncrypt(Header.version)){
+    if( MessageBox( idYes | idNo, "isDecrypted?", "Does your file been decrypted by RE_MSG_proc.1sc?") == idYes )
+        isDecrypted = true;
+}else{
+    isDecrypted = true;
+}
+
 uint64 entryOffsets[Header.entryCount]<bgcolor=0x00FFFF>;
 
 CheckPosition(Header.unknZeroOffset, "Header.unknZeroOffset");
@@ -128,22 +153,22 @@ uint64 attributeNamesOffset[Header.attributeCount]<bgcolor=0xAA44FF>;
 struct {
     local uint attrIdx = 0;
     for (attrIdx = 0; attrIdx < Header.attributeCount; attrIdx++){
-        SeekString attributeName(attributeNamesOffset[attrIdx])<read=ReadSeekString>;
+        SeekString attributeName(attributeNamesOffset[attrIdx]);
     }
-}attributeNames;
+} attributeNames;
 
 typedef struct{
     rGUID uuid<bgcolor=0xFF0000>;
     uint unkn<bgcolor=0xFF0000, format=hex, comment="CRC ???">;
-    if (Header.version <= 15 || Header.version == 0x2022033D){
-        uint index<bgcolor=0xFF0000, comment="entry index">;
-    }else{
+    if (IsVersionEntryByHash(Header.version)){
         uint hash<bgcolor=0xFF0000, format=hex, comment="should be the murmurhash3 of the entry Name">;
+    }else{
+        uint index<bgcolor=0xFF0000, comment="entry index">;
     }
     uint64 entryNameOffset<bgcolor=0xFF4400>; //name 
     uint64 attributeOffset<bgcolor=0xFF0044>; //attributes
     uint64 contentOffsetsByLangs[Header.langCount]<bgcolor=0xFF4444>; //content
-}SubEntryHeader;
+} SubEntryHeader;
 
 // entryOffsets
 struct {
@@ -152,21 +177,30 @@ struct {
         CheckPosition(entryOffsets[entry], "entryOffsets[entry]");
         SubEntryHeader subEntryHead;
     }
-}EntryTbl;
+} EntryTbl;
 
-struct Attribute(uint entry){
+typedef struct (uint entry){
     local uint attrIdx = 0;
     CheckPosition(EntryTbl.subEntryHead[entry].attributeOffset, "EntryTbl.subEntryHead[entry].attributeOffset");
     for (attrIdx = 0; attrIdx < Header.attributeCount; attrIdx++) {
         switch (attributeValueTypes[attrIdx]){
-            case -1: ReadAttrString attributeValue()<read=ReadReadAttrString>; break;
+            case -1: ReadAttrString attributeValue(); break;
             case 0: int64 attributeValue<bgcolor=0xAABBCC>; break;
             case 1: double attributeValue<bgcolor=0xAABBCC>; break;
-            case 2: ReadAttrString attributeValue()<read=ReadReadAttrString>; break;
+            case 2: ReadAttrString attributeValue(); break;
             default: Printf("attribute Value DataType %d not implemented\n", attributeValueTypes[attrIdx]); break; //attributeOffsets
         }
     }
-};
+} Attribute;
+
+typedef struct {
+    local uint langIndex = 0;
+    for (langIndex = 0; langIndex < Header.langCount; langIndex++) {
+        SeekString textContent(EntryTbl.subEntryHead[entry].contentOffsetsByLangs[langIndex]); //content
+    }
+} ContentByLangs<read=ReadContentByLangs>;
+
+    wstring ReadContentByLangs (ContentByLangs &r) { return r.textContent[defaultContentPreviewLangCode].WString; }
 
 // better readability
 struct {
@@ -178,7 +212,7 @@ struct {
     //     }
     // } Attributes;
 
-    if (Header.version > 12 && Header.version!=0x2022033D){
+    if (IsVersionEncrypt(Header.version)){
         FSeek(Header.dataOffset);
         // CheckPosition(Header.dataOffset, "dataOffset");
         local uint64 dataSize = FileSize() - Header.dataOffset;
@@ -187,21 +221,14 @@ struct {
 
     // struct {
     //     for (entry = 0; entry < Header.entryCount; entry++){
-    //         SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=ReadSeekString, comment="should match the hash(utf16)">; //name
+    //         SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<comment="should match the hash(utf16)">; //name
     //     }
     // } EntryNames;
 
-    struct ContentByLangs{
-        local uint langIndex = 0;
-        for (langIndex = 0; langIndex < Header.langCount; langIndex++) {
-            SeekString textContent(EntryTbl.subEntryHead[entry].contentOffsetsByLangs[langIndex])<read=ReadSeekString>; //content
-        }
-    };
-
     //struct {
         for (entry = 0; entry < Header.entryCount; entry++){
-            SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=ReadSeekString, comment="should match the hash(utf16)">; //name
-            ContentByLangs contentByLangs<read=ReadContentByLangs>;
+            SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<comment="should match the hash(utf16)">; //name
+            ContentByLangs contentByLangs;
             FSeek(EntryTbl.subEntryHead[entry].attributeOffset);
             Attribute attribute(entry);
 
@@ -222,7 +249,7 @@ struct {
     } Attributes;
 
 
-    if (Header.version > 12 && Header.version!=0x2022033D){
+    if (IsVersionEncrypt(Header.version)){
         // FSeek(Header.dataOffset);
         CheckPosition(Header.dataOffset, "dataOffset");
         local uint64 dataSize = FileSize() - Header.dataOffset;
@@ -231,21 +258,14 @@ struct {
 
     struct {
         for (entry = 0; entry < Header.entryCount; entry++){
-            SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=ReadSeekString, comment="should match the hash(utf16)">; //name
+            SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<comment="should match the hash(utf16)">; //name
         }
     } EntryNames;
 
-    struct ContentByLangs{
-        local uint langIndex = 0;
-        for (langIndex = 0; langIndex < Header.langCount; langIndex++) {
-            SeekString textContent(EntryTbl.subEntryHead[entry].contentOffsetsByLangs[langIndex])<read=ReadSeekString>; //content
-        }
-    };
-
     struct {
         for (entry = 0; entry < Header.entryCount; entry++){
-            // SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<read=ReadSeekString, comment="should match the hash(utf16)">; //name
-            ContentByLangs contentByLangs<read=ReadContentByLangs>;
+            // SeekString entryName(EntryTbl.subEntryHead[entry].entryNameOffset)<comment="should match the hash(utf16)">; //name
+            ContentByLangs contentByLangs;
             // FSeek(EntryTbl.subEntryHead[entry].attributeOffset);
             // Attribute attribute(entry);
 
@@ -267,14 +287,3 @@ if (isDecrypted){
         };
     }WStringPool;
 }*/
-
-
-// Add some reader function to let 010 9.x able to run this template
-
-wstring ReadSeekString (SeekString &r) { return r.WString; }
-
-wstring ReadReadAttrString (ReadAttrString &r) { return r.WString; }
-
-// change value of i for textContent[i] to view in other lang, ref to LanguagesEnum.md
-// (while for debug msg file, sometimes it has japanese contents only)
-wstring ReadContentByLangs (ContentByLangs &r) { return r.textContent[0].WString; }
