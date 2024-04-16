@@ -1,6 +1,8 @@
 # RE_MSG
  010 Editor Binary Template for editing RE Engine msg files with `GMSG` struct. Aims to work on all versions of msg file across different RE Engine game.
 
+ **If you are looking for modding a msg file, you probably want this [REMSG_Converter](https://github.com/dtlnor/REMSG_Converter)**
+
 # Installation
 1. Download via "Code -> Download as ZIP"
 2. Extract all to the same folder
