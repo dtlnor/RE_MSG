@@ -1,9 +1,9 @@
 //------------------------------------------------
 //--- 010 Editor v12.0.1 Binary Template
 //
-//      File: .msg.12, 0x2022033D(539099965), 14, 15, 17, 20, 0x20220626(539100710), 22
+//      File: .msg.12, 0x2022033D(539099965), 14, 15, 0x00300010E(50331918), 0x00400010F(67109135), 17, 20, 0x20220626(539100710), 22, 23
 //   Authors: dtlnor (Thanks to wwylele's mhrice and ponaromixxx's msg tool)
-//   Version: 1.1.0
+//   Version: 2.0.1
 //   Purpose: To edit ReEngine's msg file
 //  Category: 
 // File Mask: *.msg.\d+
@@ -65,7 +65,7 @@ int IsVersionEncrypt(uint32 version){
 
 
 int IsVersionEntryByHash(uint32 version){
-    return (version > 15) && (version != 0x2022033D);
+    return (version > 15) && (version != 0x2022033D) && (version != 0x00300010E) && (version != 0x00400010F);
 }
 
 
