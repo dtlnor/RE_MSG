@@ -1,7 +1,7 @@
 //------------------------------------------------
 //--- 010 Editor v12.0.1 Binary Template
 //
-//      File: .msg.12, 0x2022033D(539099965), 14, 15, 0x00300010E(50331918), 0x00400010F(67109135), 17, 20, 0x20220626(539100710), 22, 23
+//      File: .msg.{12, 0x2022033D(539099965), 14, 15, 0x0100010C(16777484), 0x0300010E(50331918), 0x0400010F(67109135), 17, 20, 0x20220626(539100710), 22, 23}
 //   Authors: dtlnor (Thanks to wwylele's mhrice and ponaromixxx's msg tool)
 //   Version: 2.0.1
 //   Purpose: To edit ReEngine's msg file
@@ -60,12 +60,12 @@ void CheckPosition(uint64 target, string hint){
 
 
 int IsVersionEncrypt(uint32 version){
-    return (version > 12) && (version != 0x2022033D);
+    return (version > 12) && (version != 0x2022033D) && (version != 0x0100010C);
 }
 
 
 int IsVersionEntryByHash(uint32 version){
-    return (version > 15) && (version != 0x2022033D) && (version != 0x00300010E) && (version != 0x00400010F);
+    return (version > 15) && (version != 0x2022033D) && (version != 0x0100010C) && (version != 0x0300010E) && (version != 0x0400010F);
 }
 
 
