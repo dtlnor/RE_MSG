@@ -118,7 +118,7 @@ struct {
     if (IsVersionEncrypt(version)){
         uint64 dataOffset;      // encrypted string pool
     }
-    uint64 unknZeroOffset;
+    uint64 unknZeroOffset;      // possibly points to some runtime value, sometimes zero.
     uint64 langOffset;
     uint64 attributeOffset;
     uint64 attributeNameOffset;
@@ -133,12 +133,14 @@ if (IsVersionEncrypt(Header.version)){
 
 uint64 entryOffsets[Header.entryCount]<bgcolor=0x00FFFF>;
 
-CheckPosition(Header.unknZeroOffset, "Header.unknZeroOffset");
+if (Header.unknZeroOffset != 0){ // == 0 in some Resident Evil 7 (PC DX11 version) files.
+    CheckPosition(Header.unknZeroOffset, "Header.unknZeroOffset");
+}
 uint64 unknZero<bgcolor=0x404040>;
 if (unknZero != 0) Printf("unknZero Expected 0\n");
 
 CheckPosition(Header.langOffset, "Header.langOffset");
-uint32 languages[Header.langCount]<bgcolor=0xFF00FF>;
+int32 languages[Header.langCount]<bgcolor=0xFF00FF>;
 
 ubyte padding1[FTell() % 8]<bgcolor=0x000000,hidden=true>;
 
